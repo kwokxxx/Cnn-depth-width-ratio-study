@@ -1,0 +1,68 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+% \usepackage{style/dicta}
+% \def\dictaPaperID{xxxx} % *** Enter the DICTA Paper ID here
+% \dictafinalcopy % *** Uncomment this line for the final submission
+
+\usepackage{style/dlcc}
+\def\dlccPaperID{0001} % *** Enter the DLCC Paper ID here
+% \dlccfinalcopy % *** Uncomment this line for the final submission
+
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% Include other packages here, before hyperref.
+
+% If you comment hyperref and then uncomment it, you should delete
+% egpaper.aux before re-running latex.  (Or just hit 'q' on the first latex
+% run, let it finish, and you should be clear).
+\usepackage[pagebackref=true,breaklinks=true,letterpaper=true,colorlinks,bookmarks=false]{hyperref}
+
+\def\httilde{\mbox{\tt\raisebox{-.5ex}{\symbol{126}}}}
+
+% Pages are numbered in submission mode, and unnumbered in camera-ready
+% \ifdictafinal\pagestyle{empty}\fi
+\ifdlccfinal\pagestyle{empty}\fi
+
+\begin{document}
+
+%%%%%%%%% TITLE
+\title{\LaTeX\ Author Guidelines for DLCC}
+
+\author{First Author\\
+Institution1\\
+Institution1 address\\
+{\tt\small firstauthor@i1.org}
+% For a paper whose authors are all at the same institution,
+% omit the following lines up until the closing ``}''.
+% Additional authors and addresses can be added with ``\and'',
+% just like the second author.
+% To save space, use either the email address or home page, not both
+\and
+Second Author\\
+Institution2\\
+First line of institution2 address\\
+{\tt\small secondauthor@i2.org}
+}
+
+\maketitle
+%\thispagestyle{empty}
+
+%%%%%%%%% ABSTRACT
+\input{sec/00_abstract}
+
+%%%%%%%%% BODY TEXT
+\input{sec/01_introduction}
+
+%------------------------------------------------------------------------
+\input{sec/02_formattingyourpaper}
+
+{\small
+\bibliographystyle{style/ieee}
+\bibliography{main}
+}
+
+\end{document}

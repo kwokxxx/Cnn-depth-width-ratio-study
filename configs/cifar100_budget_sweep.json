@@ -1,0 +1,8 @@
+[
+  {"dataset": "cifar100", "depth": 2, "width": 128, "model_family": "plain", "width_schedule": "stagewise"},
+  {"dataset": "cifar100", "depth": 4, "width": 64, "model_family": "plain", "width_schedule": "stagewise"},
+  {"dataset": "cifar100", "depth": 6, "width": 48, "model_family": "plain", "width_schedule": "stagewise"},
+  {"dataset": "cifar100", "depth": 8, "width": 40, "model_family": "plain", "width_schedule": "stagewise"},
+  {"dataset": "cifar100", "depth": 4, "width": 48, "model_family": "residual", "width_schedule": "stagewise"},
+  {"dataset": "cifar100", "depth": 6, "width": 32, "model_family": "residual", "width_schedule": "stagewise"}
+]

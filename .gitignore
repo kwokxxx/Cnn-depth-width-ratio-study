@@ -1,0 +1,17 @@
+data/
+results/
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.DS_Store
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+*.log
+*.tmp
+*.pt
+*.pth
+*.ckpt
