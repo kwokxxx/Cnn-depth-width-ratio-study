@@ -1,6 +1,6 @@
 # CNN Depth-Width Ratio Study
 
-This repository contains the experiment code for the COMP5329/COMP4329 Assignment 2 project:
+This repository contains the experiment code for the project:
 
 **An Empirical Investigation of Optimal Depth-to-Width Ratios in CNNs Under Fixed Parameter Budgets**
 
