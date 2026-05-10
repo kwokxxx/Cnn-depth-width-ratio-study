@@ -2,6 +2,7 @@ data/
 results/
 Assignment2-1.pdf
 Template/
+PROJECT_NOTES.md
 
 __pycache__/
 *.py[cod]

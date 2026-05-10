@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 import torch
 from torch import nn
@@ -20,6 +21,7 @@ class CNNConfig:
     width_schedule: str = "stagewise"
     width_slope: int = 8
     max_width_multiplier: int = 8
+    max_downsamples: int = 3
 
 
 def make_channel_schedule(config: CNNConfig) -> list[int]:
@@ -43,6 +45,49 @@ def make_channel_schedule(config: CNNConfig) -> list[int]:
             raise ValueError(f"unknown width schedule: {config.width_schedule}")
         channels.append(int(out_channels))
     return channels
+
+
+def effective_width(channels: list[int]) -> float:
+    """Geometric mean of per-block channels.
+
+    This is the main width statistic for stagewise networks, where the base width
+    can substantially understate the effective channel scale of the architecture.
+    """
+
+    if not channels:
+        raise ValueError("channels must not be empty")
+    return math.exp(sum(math.log(channel) for channel in channels) / len(channels))
+
+
+def downsample_indices(depth: int, max_downsamples: int = 3) -> list[int]:
+    """Return block indices that perform spatial downsampling.
+
+    Stage transitions remain every two blocks, but the number of spatial reductions
+    is capped so deeper networks add computation at the final feature resolution
+    instead of repeatedly collapsing CIFAR images to 1x1.
+    """
+
+    indices: list[int] = []
+    for block_index in range(depth):
+        is_stage_transition = block_index > 0 and block_index % 2 == 0
+        if is_stage_transition and len(indices) < max_downsamples:
+            indices.append(block_index)
+    return indices
+
+
+def architecture_metadata(config: CNNConfig) -> dict[str, float | int | str]:
+    channels = make_channel_schedule(config)
+    width = effective_width(channels)
+    transitions = downsample_indices(config.depth, config.max_downsamples)
+    return {
+        "channel_schedule": "-".join(str(channel) for channel in channels),
+        "base_depth_width_ratio": config.depth / config.width,
+        "effective_width": width,
+        "effective_depth_width_ratio": config.depth / width,
+        "downsample_count": len(transitions),
+        "downsample_indices": "-".join(str(index) for index in transitions),
+        "final_spatial_size": 32 // (2 ** len(transitions)),
+    }
 
 
 class ConvBlock(nn.Module):
@@ -123,12 +168,13 @@ class ConfigurableCNN(nn.Module):
         super().__init__()
         self.config = config
         self.channels = make_channel_schedule(config)
+        self.downsample_indices = set(downsample_indices(config.depth, config.max_downsamples))
+        self.metadata = architecture_metadata(config)
 
         layers: list[nn.Module] = []
         in_channels = config.input_channels
         for block_index, out_channels in enumerate(self.channels):
-            is_transition = block_index > 0 and block_index % 2 == 0
-            stride = 2 if is_transition else 1
+            stride = 2 if block_index in self.downsample_indices else 1
 
             if config.model_family == "plain":
                 layers.append(
@@ -190,6 +236,7 @@ def make_model(
     model_family: str = "plain",
     width_schedule: str = "stagewise",
     width_slope: int = 8,
+    max_downsamples: int = 3,
 ) -> ConfigurableCNN:
     config = CNNConfig(
         depth=depth,
@@ -200,5 +247,6 @@ def make_model(
         model_family=model_family,
         width_schedule=width_schedule,
         width_slope=width_slope,
+        max_downsamples=max_downsamples,
     )
     return ConfigurableCNN(config)

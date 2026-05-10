@@ -7,12 +7,30 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-GROUP_COLUMNS = ["dataset", "model_family", "width_schedule", "depth", "width", "parameters"]
+GROUP_COLUMNS = [
+    "dataset",
+    "model_family",
+    "width_schedule",
+    "depth",
+    "width",
+    "parameters",
+    "channel_schedule",
+    "effective_width",
+    "effective_depth_width_ratio",
+    "base_depth_width_ratio",
+    "downsample_count",
+    "final_spatial_size",
+]
 
 
 def add_derived_columns(frame: pd.DataFrame) -> pd.DataFrame:
     frame = frame.copy()
-    frame["depth_width_ratio"] = frame["depth"] / frame["width"]
+    if "base_depth_width_ratio" not in frame.columns:
+        frame["base_depth_width_ratio"] = frame["depth"] / frame["width"]
+    if "effective_width" not in frame.columns:
+        frame["effective_width"] = frame["width"]
+    if "effective_depth_width_ratio" not in frame.columns:
+        frame["effective_depth_width_ratio"] = frame["depth"] / frame["effective_width"]
     if "target_parameters" in frame.columns:
         numeric_target = pd.to_numeric(frame["target_parameters"], errors="coerce")
         frame["parameter_budget_error"] = (frame["parameters"] - numeric_target).abs() / numeric_target
@@ -25,7 +43,7 @@ def aggregate_summary(summary: pd.DataFrame) -> pd.DataFrame:
     summary = add_derived_columns(summary)
     present_group_columns = [column for column in GROUP_COLUMNS if column in summary.columns]
     grouped = (
-        summary.groupby(present_group_columns + ["depth_width_ratio"], as_index=False)
+        summary.groupby(present_group_columns, as_index=False)
         .agg(
             best_test_accuracy_mean=("best_test_accuracy", "mean"),
             best_test_accuracy_std=("best_test_accuracy", "std"),
@@ -36,12 +54,12 @@ def aggregate_summary(summary: pd.DataFrame) -> pd.DataFrame:
             flops_mean=("flops", "mean"),
             parameter_budget_error_mean=("parameter_budget_error", "mean"),
         )
-        .sort_values(["dataset", "model_family", "width_schedule", "depth_width_ratio"])
+        .sort_values(["dataset", "model_family", "width_schedule", "effective_depth_width_ratio"])
     )
     return grouped
 
 
-def plot_metric_by_ratio(
+def plot_metric_by_effective_ratio(
     grouped: pd.DataFrame,
     output_dir: Path,
     metric: str,
@@ -53,10 +71,10 @@ def plot_metric_by_ratio(
     for key, subset in grouped.groupby(["dataset", "model_family", "width_schedule"]):
         dataset, family, schedule = key
         label = f"{dataset} / {family} / {schedule}"
-        subset = subset.sort_values("depth_width_ratio")
+        subset = subset.sort_values("effective_depth_width_ratio")
         if include_errorbar and "best_test_accuracy_std" in subset.columns:
             plt.errorbar(
-                subset["depth_width_ratio"],
+                subset["effective_depth_width_ratio"],
                 subset[metric],
                 yerr=subset["best_test_accuracy_std"].fillna(0.0),
                 marker="o",
@@ -65,9 +83,9 @@ def plot_metric_by_ratio(
                 label=label,
             )
         else:
-            plt.plot(subset["depth_width_ratio"], subset[metric], marker="o", linewidth=2, label=label)
+            plt.plot(subset["effective_depth_width_ratio"], subset[metric], marker="o", linewidth=2, label=label)
 
-    plt.xlabel("Depth-to-width ratio")
+    plt.xlabel("Effective depth-to-width ratio")
     plt.ylabel(ylabel)
     plt.grid(alpha=0.25)
     plt.legend(fontsize=8)
@@ -105,7 +123,7 @@ def plot_summary(summary_path: Path, output_dir: Path) -> pd.DataFrame:
     summary = pd.read_csv(summary_path)
     grouped = aggregate_summary(summary)
 
-    plot_metric_by_ratio(
+    plot_metric_by_effective_ratio(
         grouped,
         output_dir,
         metric="best_test_accuracy_mean",
@@ -113,14 +131,14 @@ def plot_summary(summary_path: Path, output_dir: Path) -> pd.DataFrame:
         filename="accuracy_vs_ratio.png",
         include_errorbar=True,
     )
-    plot_metric_by_ratio(
+    plot_metric_by_effective_ratio(
         grouped,
         output_dir,
         metric="final_generalization_gap_mean",
         ylabel="Final train-test accuracy gap",
         filename="generalization_gap_vs_ratio.png",
     )
-    plot_metric_by_ratio(
+    plot_metric_by_effective_ratio(
         grouped,
         output_dir,
         metric="elapsed_seconds_mean",
@@ -128,7 +146,7 @@ def plot_summary(summary_path: Path, output_dir: Path) -> pd.DataFrame:
         filename="training_time_vs_ratio.png",
     )
     if grouped["parameter_budget_error_mean"].notna().any():
-        plot_metric_by_ratio(
+        plot_metric_by_effective_ratio(
             grouped,
             output_dir,
             metric="parameter_budget_error_mean",

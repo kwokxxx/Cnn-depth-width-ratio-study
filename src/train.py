@@ -76,9 +76,11 @@ def train_once(args: argparse.Namespace) -> dict[str, Any]:
         model_family=args.model_family,
         width_schedule=args.width_schedule,
         width_slope=args.width_slope,
+        max_downsamples=args.max_downsamples,
     ).to(device)
 
     parameter_count = count_parameters(model)
+    model_metadata = model.metadata
     flops_per_example = estimate_flops(model, (1, 3, 32, 32), device) if args.measure_flops else 0
     latency_seconds = (
         measure_inference_latency(model, (args.batch_size, 3, 32, 32), device) if args.measure_latency else 0.0
@@ -118,6 +120,13 @@ def train_once(args: argparse.Namespace) -> dict[str, Any]:
             "depth": args.depth,
             "width": args.width,
             "width_slope": args.width_slope,
+            "channel_schedule": model_metadata["channel_schedule"],
+            "base_depth_width_ratio": model_metadata["base_depth_width_ratio"],
+            "effective_width": model_metadata["effective_width"],
+            "effective_depth_width_ratio": model_metadata["effective_depth_width_ratio"],
+            "downsample_count": model_metadata["downsample_count"],
+            "downsample_indices": model_metadata["downsample_indices"],
+            "final_spatial_size": model_metadata["final_spatial_size"],
             "seed": args.seed,
             "parameters": parameter_count,
             "flops": flops_per_example,
@@ -157,6 +166,13 @@ def train_once(args: argparse.Namespace) -> dict[str, Any]:
         "depth": args.depth,
         "width": args.width,
         "width_slope": args.width_slope,
+        "channel_schedule": model_metadata["channel_schedule"],
+        "base_depth_width_ratio": model_metadata["base_depth_width_ratio"],
+        "effective_width": model_metadata["effective_width"],
+        "effective_depth_width_ratio": model_metadata["effective_depth_width_ratio"],
+        "downsample_count": model_metadata["downsample_count"],
+        "downsample_indices": model_metadata["downsample_indices"],
+        "final_spatial_size": model_metadata["final_spatial_size"],
         "seed": args.seed,
         "parameters": parameter_count,
         "flops": flops_per_example,
@@ -193,6 +209,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--depth", type=int, required=True)
     parser.add_argument("--width", type=int, required=True)
     parser.add_argument("--width-slope", type=int, default=8)
+    parser.add_argument("--max-downsamples", type=int, default=3)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--optimizer", choices=["sgd", "adamw"], default="sgd")

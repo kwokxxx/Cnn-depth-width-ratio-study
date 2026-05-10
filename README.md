@@ -1,75 +1,116 @@
 # CNN Depth-Width Ratio Study
 
-This repository contains the experiment code for the project:
+This repository contains the code and Colab workflow for:
 
 **An Empirical Investigation of Optimal Depth-to-Width Ratios in CNNs Under Fixed Parameter Budgets**
 
-The code is designed for controlled empirical analysis rather than a single best-score run. It supports plain CNNs, residual CNNs, multiple width schedules, automatic parameter-budget matching, CIFAR-10/CIFAR-100, and paper-ready plots/tables.
+The project studies how CNN depth and width allocation affects CIFAR classification under controlled parameter budgets. The code supports plain CNNs, residual CNNs, fixed-budget width search, effective depth-width ratio analysis, FLOPs, gradient norms, plots, and paper-ready tables.
 
-## Setup
+## Recommended Workflow: Colab
+
+Use [experiment.ipynb](experiment.ipynb) as the main entry point.
+
+In Colab:
+
+1. Open `experiment.ipynb`.
+2. Select **Runtime > Change runtime type > GPU**.
+3. Run the notebook cells from top to bottom.
+4. When prompted, mount Google Drive.
+
+The notebook stores all project-related content in:
+
+```text
+MyDrive/5329A2/
+```
+
+Expected Drive layout:
+
+```text
+MyDrive/5329A2/project/   # cloned GitHub repository
+MyDrive/5329A2/data/      # CIFAR-10 and optional CIFAR-100
+MyDrive/5329A2/results/   # training logs, summaries, figures, tables
+```
+
+This means Colab runtime resets will not delete the dataset or experiment outputs.
+
+## Main Experiments
+
+The notebook first runs a smoke test, then two CIFAR-10 sweeps:
+
+- **Plain CNN sweep:** main fixed-budget depth-width experiment.
+- **Residual CNN sweep:** control experiment for deep-network optimization difficulty.
+
+Default experiment settings in the notebook:
+
+```python
+TARGET_PARAMS = 250_000
+DEPTHS = "2,4,6,8,10,12"
+SEEDS = "0,1"
+EPOCHS = 30
+BATCH_SIZE = 128
+```
+
+For stronger final results, increase `EPOCHS` to `50` or `100` if GPU time allows.
+
+With 6 depths, 2 seeds, and 100 epochs:
+
+```text
+6 * 2 * 100 = 1200 epochs per sweep
+```
+
+Running both plain and residual sweeps doubles this to 2400 total epochs.
+
+## Output Files
+
+Each sweep writes outputs under `MyDrive/5329A2/results/...`.
+
+Important files:
+
+- `sweep_summary.csv`: run-level results across depths and seeds.
+- `*_history.csv`: per-epoch loss, accuracy, throughput, gradient norm.
+- `*_summary.json`: summary for one training run.
+- `figures/accuracy_vs_ratio.png`: accuracy vs effective depth-width ratio.
+- `figures/generalization_gap_vs_ratio.png`: train-test gap vs effective ratio.
+- `figures/accuracy_vs_flops.png`: accuracy vs compute cost.
+- `tables/model_ranking.md`: paper-ready model ranking table.
+- `tables/family_summary.md`: aggregate model-family summary.
+
+## Architecture Ratio Definition
+
+For stagewise CNNs, the base width is only the first-stage channel count. The code therefore records two ratios:
+
+```text
+base_depth_width_ratio = depth / base_width
+effective_depth_width_ratio = depth / effective_width
+```
+
+where:
+
+```text
+effective_width = geometric mean of per-block channel counts
+```
+
+Figures and tables use `effective_depth_width_ratio` as the main x-axis. This avoids treating the base width as the true width of a stagewise network.
+
+## Downsampling Policy
+
+Spatial downsampling is capped at three reductions:
+
+```text
+32x32 -> 16x16 -> 8x8 -> 4x4
+```
+
+This prevents deeper models such as depth 10 or 12 from repeatedly collapsing the CIFAR feature maps to 1x1, which would confound depth effects with spatial-resolution loss.
+
+## Local Usage
+
+Colab is recommended, but the same commands work locally after installing dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-The code expects datasets under `data/` and does not download automatically unless `--download` is provided.
-
-```text
-data/
-  cifar-10-batches-py/
-  cifar-100-python/
-```
-
-## Train One Model
-
-Plain CNN:
-
-```bash
-python -m src.train \
-  --dataset cifar10 \
-  --model-family plain \
-  --width-schedule stagewise \
-  --depth 4 \
-  --width 64 \
-  --epochs 100 \
-  --seed 0 \
-  --measure-flops \
-  --track-grad-norm
-```
-
-Residual CNN:
-
-```bash
-python -m src.train \
-  --dataset cifar10 \
-  --model-family residual \
-  --width-schedule stagewise \
-  --depth 6 \
-  --width 32 \
-  --epochs 100 \
-  --seed 0 \
-  --measure-flops
-```
-
-Outputs are written to `results/`:
-
-- `*_history.csv`: per-epoch loss, accuracy, throughput, gradient norm
-- `*_summary.json`: final run-level summary
-
-## Run A Manual Sweep
-
-```bash
-python -m src.sweep \
-  --config configs/cifar10_budget_sweep.json \
-  --epochs 100 \
-  --seeds 0,1,2 \
-  --measure-flops \
-  --track-grad-norm
-```
-
-## Run A Fixed-Parameter-Budget Sweep
-
-This is the recommended protocol for the paper. It searches for the width closest to a target parameter budget for each depth.
+Run one plain fixed-budget sweep:
 
 ```bash
 python -m src.sweep \
@@ -78,63 +119,28 @@ python -m src.sweep \
   --width-schedule stagewise \
   --target-params 250000 \
   --depths 2,4,6,8,10,12 \
-  --epochs 100 \
-  --seeds 0,1,2 \
+  --epochs 30 \
+  --seeds 0,1 \
   --measure-flops \
-  --track-grad-norm
+  --track-grad-norm \
+  --no-progress
 ```
 
-For the residual comparison:
-
-```bash
-python -m src.sweep \
-  --dataset cifar10 \
-  --model-family residual \
-  --width-schedule stagewise \
-  --target-params 250000 \
-  --depths 2,4,6,8,10,12 \
-  --epochs 100 \
-  --seeds 0,1,2 \
-  --measure-flops
-```
-
-## Generate Figures And Tables
+Generate figures and tables:
 
 ```bash
 python -m src.plot_results --summary results/sweep_summary.csv
 python -m src.analysis --summary results/sweep_summary.csv
 ```
 
-Figures are written to `results/figures/`:
+## Repository Notes
 
-- `accuracy_vs_ratio.png`
-- `generalization_gap_vs_ratio.png`
-- `training_time_vs_ratio.png`
-- `budget_error_vs_ratio.png`
-- `accuracy_vs_flops.png`
-- `test_accuracy_curves.png`
+The assignment PDF, official templates, datasets, local result folders, and local project notes are intentionally ignored and not uploaded to GitHub:
 
-Tables are written to `results/tables/`:
-
-- `model_ranking.md`
-- `family_summary.md`
-
-## Experiment Design Notes
-
-Useful factors for the paper:
-
-- **Depth-width ratio:** compare depth while matching parameter count as closely as possible.
-- **Optimization stability:** use gradient norm and convergence curves to distinguish representation limits from training failure.
-- **Generalization:** report train-test gap, not only best test accuracy.
-- **Compute efficiency:** report FLOPs and wall-clock training time alongside accuracy.
-- **Skip connections:** compare `plain` vs `residual` to test whether deep narrow models fail because of optimization.
-- **Task difficulty:** use CIFAR-10 first; add CIFAR-100 if time allows to support claims about task complexity.
-
-Recommended final runs:
-
-1. CIFAR-10, plain CNN, 2-3 parameter budgets, 3 seeds.
-2. CIFAR-10, residual CNN, same budgets, 3 seeds.
-3. Optional CIFAR-100 subset or full CIFAR-100 for task-complexity analysis.
-4. Report mean and standard deviation, plus FLOPs and parameter-budget error.
-
-Avoid claiming a universal optimal ratio unless the result is consistent across datasets, budgets, and model families.
+```text
+Assignment2-1.pdf
+Template/
+data/
+results/
+PROJECT_NOTES.md
+```

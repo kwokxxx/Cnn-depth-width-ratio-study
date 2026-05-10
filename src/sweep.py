@@ -83,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-family", choices=["plain", "residual"], default="plain")
     parser.add_argument("--width-schedule", choices=["constant", "stagewise", "linear"], default="stagewise")
     parser.add_argument("--width-slope", type=int, default=8)
+    parser.add_argument("--max-downsamples", type=int, default=3)
     parser.add_argument("--target-params", type=int, default=None)
     parser.add_argument("--depths", type=str, default="2,4,6,8,10,12")
     parser.add_argument("--min-width", type=int, default=4)
@@ -132,6 +133,7 @@ def main() -> None:
                 depth=int(config["depth"]),
                 width=int(config["width"]),
                 width_slope=int(config.get("width_slope", args.width_slope)),
+                max_downsamples=int(config.get("max_downsamples", args.max_downsamples)),
                 seed=seed,
                 epochs=args.epochs,
                 batch_size=args.batch_size,
