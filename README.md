@@ -132,15 +132,3 @@ Generate figures and tables:
 python -m src.plot_results --summary results/sweep_summary.csv
 python -m src.analysis --summary results/sweep_summary.csv
 ```
-
-## Repository Notes
-
-The assignment PDF, official templates, datasets, local result folders, and local project notes are intentionally ignored and not uploaded to GitHub:
-
-```text
-Assignment2-1.pdf
-Template/
-data/
-results/
-PROJECT_NOTES.md
-```
